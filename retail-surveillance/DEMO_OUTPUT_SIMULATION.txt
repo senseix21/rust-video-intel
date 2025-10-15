@@ -1,0 +1,299 @@
+════════════════════════════════════════════════════════════════════════════
+                    DEMO EXECUTION SIMULATION
+                 (What you would see with MQTT running)
+════════════════════════════════════════════════════════════════════════════
+
+╔════════════════════════════════════════════════════════════════╗
+║          POS Integration Live Demo                             ║
+╚════════════════════════════════════════════════════════════════╝
+
+✅ Prerequisites check passed
+✅ MQTT broker already running
+
+╔════════════════════════════════════════════════════════════════╗
+║                    Demo Scenarios                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+This demo will simulate 5 real-world POS scenarios:
+
+1. 🟢 Normal transaction (Low risk)
+2. 🟡 Large discount (Medium risk)
+3. 🟠 Void transaction (Medium-high risk)
+4. 🔴 High-value refund (High risk)
+5. 🔴 Suspicious pattern (Very high risk)
+
+Press Enter to start demo...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Scenario: Normal checkout - legitimate purchase
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Event Type:  payment_cleared
+Employee:    emp_54321
+Order:       ORD23456
+Ticket:      T7891
+Amount:      $45.99
+Discount:    0%
+
+✅ Event published to MQTT
+
+[Surveillance System would show:]
+INFO Received POS event: PaymentCleared | Order: ORD23456
+INFO Risk score: 0.0
+INFO No alert triggered - normal transaction
+
+Waiting 3 seconds before next scenario...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Scenario: Large discount applied - requires review
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Event Type:  discount_applied
+Employee:    emp_12345
+Order:       ORD48592
+Ticket:      T8923
+Amount:      $120.00
+Discount:    35%
+
+✅ Event published to MQTT
+
+[Surveillance System would show:]
+INFO Received POS event: DiscountApplied | Order: ORD48592
+INFO Risk score: 0.50
+WARN 🚨 ALERT: Suspicious activity detected!
+     Type: DiscountApplied
+     Order ID: ORD48592
+     Ticket: T8923
+     Staff: emp_12345
+     Amount: $120.00
+     Risk Score: 0.50
+
+INFO Requesting video correlation for 14:33:15 to 14:35:15
+
+Waiting 3 seconds before next scenario...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Scenario: Transaction voided - customer changed mind?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Event Type:  void_transaction
+Employee:    emp_12345
+Order:       ORD67234
+Ticket:      T4567
+Amount:      $89.99
+Discount:    0%
+
+✅ Event published to MQTT
+
+[Surveillance System would show:]
+INFO Received POS event: VoidTransaction | Order: ORD67234
+INFO Risk score: 0.40
+WARN 🚨 ALERT: Suspicious activity detected!
+     Type: VoidTransaction
+     Order ID: ORD67234
+     Ticket: T4567
+     Staff: emp_12345
+     Amount: $89.99
+     Risk Score: 0.40
+
+INFO Requesting video correlation for 14:36:15 to 14:38:15
+
+Waiting 3 seconds before next scenario...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Scenario: High-value refund without receipt
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Event Type:  refund_issued
+Employee:    emp_12345
+Order:       ORD91234
+Ticket:      T9999
+Amount:      $1250.00
+Discount:    0%
+
+✅ Event published to MQTT
+
+[Surveillance System would show:]
+INFO Received POS event: RefundIssued | Order: ORD91234
+INFO Risk score: 0.70
+WARN 🚨 ALERT: Suspicious activity detected!
+     Type: RefundIssued
+     Order ID: ORD91234
+     Ticket: T9999
+     Staff: emp_12345
+     Amount: $1250.00
+     Risk Score: 0.70 (HIGH)
+
+WARN Pattern detected: emp_12345 has 3 high-risk events today
+
+INFO Requesting video correlation for 14:39:15 to 14:41:15
+
+Waiting 3 seconds before next scenario...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Scenario: 50% discount on electronics - 3rd time today!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Event Type:  discount_applied
+Employee:    emp_12345
+Order:       ORD34567
+Ticket:      T1111
+Amount:      $450.00
+Discount:    50%
+
+✅ Event published to MQTT
+
+[Surveillance System would show:]
+INFO Received POS event: DiscountApplied | Order: ORD34567
+INFO Risk score: 0.80
+WARN 🚨 URGENT ALERT: Critical risk level!
+     Type: DiscountApplied
+     Order ID: ORD34567
+     Ticket: T1111
+     Staff: emp_12345
+     Amount: $450.00
+     Risk Score: 0.80 (CRITICAL)
+
+WARN PATTERN ANALYSIS:
+     Employee emp_12345 - 4 alerts in 30 seconds:
+     • Discount 35% on ORD48592
+     • Void transaction ORD67234
+     • Refund $1250 on ORD91234
+     • Discount 50% on ORD34567
+
+     RECOMMENDED ACTION: Immediate supervisor intervention
+
+INFO Requesting video correlation for 14:42:15 to 14:44:15
+
+╔════════════════════════════════════════════════════════════════╗
+║                    Demo Complete                               ║
+╚════════════════════════════════════════════════════════════════╝
+
+Summary of events published:
+
+Event 1: Normal payment (Low risk)          → No alert
+Event 2: 35% discount (Medium risk)         → Alert triggered
+Event 3: Void transaction (Medium-high)     → Alert triggered
+Event 4: $1250 refund (High risk)           → Alert triggered
+Event 5: 50% discount (Very high risk)      → URGENT alert
+
+Employee 'emp_12345' shows suspicious pattern:
+  - 3 high-risk events in short time
+  - Pattern suggests possible theft
+  - Video review recommended
+
+═══════════════════════════════════════════════════════════════════
+
+THE MQTT EVENTS THAT WOULD BE PUBLISHED:
+
+Event 1 (Normal):
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event_type": "payment_cleared",
+  "timestamp": "2025-10-04T14:33:00Z",
+  "store_id": "store_001",
+  "register_id": "reg_02",
+  "staff_id": "emp_54321",
+  "order_id": "ORD23456",
+  "ticket_no": "T7891",
+  "amount": 45.99,
+  "discount_percent": 0
+}
+
+Event 2 (Alert):
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440001",
+  "event_type": "discount_applied",
+  "timestamp": "2025-10-04T14:34:15Z",
+  "store_id": "store_001",
+  "register_id": "reg_02",
+  "staff_id": "emp_12345",
+  "order_id": "ORD48592",
+  "ticket_no": "T8923",
+  "amount": 120.00,
+  "original_amount": 184.62,
+  "discount_percent": 35.0
+}
+
+Event 3 (Alert):
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440002",
+  "event_type": "void_transaction",
+  "timestamp": "2025-10-04T14:37:15Z",
+  "store_id": "store_001",
+  "register_id": "reg_02",
+  "staff_id": "emp_12345",
+  "order_id": "ORD67234",
+  "ticket_no": "T4567",
+  "amount": 89.99
+}
+
+Event 4 (High Alert):
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440003",
+  "event_type": "refund_issued",
+  "timestamp": "2025-10-04T14:40:15Z",
+  "store_id": "store_001",
+  "register_id": "reg_02",
+  "staff_id": "emp_12345",
+  "order_id": "ORD91234",
+  "ticket_no": "T9999",
+  "amount": 1250.00
+}
+
+Event 5 (Critical Alert):
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440004",
+  "event_type": "discount_applied",
+  "timestamp": "2025-10-04T14:43:15Z",
+  "store_id": "store_001",
+  "register_id": "reg_02",
+  "staff_id": "emp_12345",
+  "order_id": "ORD34567",
+  "ticket_no": "T1111",
+  "amount": 450.00,
+  "original_amount": 900.00,
+  "discount_percent": 50.0
+}
+
+═══════════════════════════════════════════════════════════════════
+
+RISK SCORE CALCULATIONS:
+
+Event 1: payment_cleared
+  Base risk: 0.0
+  Total: 0.0 → NO ALERT
+
+Event 2: discount_applied (35%)
+  Base risk: 0.2
+  High discount (>30%): +0.3
+  Total: 0.5 → ALERT
+
+Event 3: void_transaction
+  Base risk: 0.4
+  Total: 0.4 → ALERT
+
+Event 4: refund_issued ($1250)
+  Base risk: 0.5
+  High value (>$1000): +0.2
+  Total: 0.7 → HIGH ALERT
+
+Event 5: discount_applied (50%)
+  Base risk: 0.2
+  High discount (>30%): +0.3
+  Repeat offender: +0.3
+  Total: 0.8 → CRITICAL ALERT
+
+═══════════════════════════════════════════════════════════════════
+
+WHAT THE SURVEILLANCE SYSTEM WOULD DO:
+
+For each alert:
+1. Calculate time window (±60 seconds)
+2. Request video from cameras:
+   - checkout_02 (register view)
+   - checkout_wide (floor overview)
+   - entrance (customer tracking)
+3. Run people detection on clips
+4. Identify staff member via face recognition
+5. Link video to order_id and ticket_no
+6. Store evidence for investigation
+
+Total time from POS event to video evidence: 2-4 seconds
+
+═══════════════════════════════════════════════════════════════════

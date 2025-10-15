@@ -1,0 +1,52 @@
+[package]
+name = "retail-surveillance"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gstreamer = "0.22"
+gstreamer-app = "0.22"
+image = { version = "0.25", features = ["jpeg", "png"] }
+anyhow = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# MQTT for POS events
+rumqttc = "0.24"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "uuid"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.7", features = ["v4", "serde"] }
+
+# REST API
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Configuration
+config = "0.14"
+
+# HTTP client for ML service
+reqwest = { version = "0.11", features = ["json", "tokio-native-tls"] }
+
+# Testing and misc
+rand = "0.8"
+
+[[bin]]
+name = "main_phase5"
+path = "src/main_phase5.rs"
+
+[[bin]]
+name = "main_phase6"
+path = "src/main_phase6.rs"
+
+[[bin]]
+name = "retail-surveillance"
+path = "src/main.rs"
+
+[build-dependencies]
+pkg-config = "0.3"
