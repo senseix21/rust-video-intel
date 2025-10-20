@@ -1,0 +1,14 @@
+/target
+/_data
+.idea
+*.mp4
+*.mkv
+*.pt
+*.onnx
+*.jpg
+candle.sh
+*.dot
+/_dot
+fix_ort_hack.sh
+*.json
+*.rrd

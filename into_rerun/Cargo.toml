@@ -1,0 +1,12 @@
+[package]
+name = "into_rerun"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# workspace
+inference_common.workspace = true
+# external
+clap = { workspace = true }
+rerun = { version = "0.22.0" }
+serde_json = { version = "1.0.134" }
