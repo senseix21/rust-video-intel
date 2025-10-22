@@ -484,7 +484,9 @@ pub fn process_webcam_internal(
     pipeline.set_state(gst::State::Playing).unwrap();
     
     let bus = pipeline.bus().unwrap();
-    println!("Webcam inference running. Press Ctrl+C to stop.");
+    if tui_tx.is_none() {
+        println!("Webcam inference running. Press Ctrl+C to stop.");
+    }
     for msg in bus.iter_timed(gst::ClockTime::NONE) {
         match msg.view() {
             MessageView::Error(err) => {

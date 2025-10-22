@@ -122,11 +122,16 @@ fn draw_video_info(f: &mut Frame, app: &App, area: Rect) {
 fn draw_left_panel(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(40), // Performance stats
+            Constraint::Percentage(30), // Class distribution  
+            Constraint::Percentage(30), // Living beings
+        ])
         .split(area);
 
     draw_performance_stats(f, app, chunks[0]);
     draw_class_distribution(f, app, chunks[1]);
+    draw_living_beings(f, app, chunks[2]);
 }
 
 fn draw_performance_stats(f: &mut Frame, app: &App, area: Rect) {
@@ -178,18 +183,70 @@ fn draw_class_distribution(f: &mut Frame, app: &App, area: Rect) {
 
     let items: Vec<ListItem> = counts
         .iter()
-        .take(10)
+        .take(8)
         .map(|(class, count)| {
-            let bar_width = (*count * 20 / counts.first().map(|(_, c)| **c).unwrap_or(1).max(1)).min(20);
+            let bar_width = (*count * 15 / counts.first().map(|(_, c)| **c).unwrap_or(1).max(1)).min(15);
             let bar = "█".repeat(bar_width);
-            ListItem::new(format!("{:<12} {:<20} {}", class, bar, count))
+            ListItem::new(format!("{:<10} {:<15} {}", class, bar, count))
         })
         .collect();
 
     let list = List::new(items).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(format!("📈 Class Distribution (Total: {})", app.total_detections)),
+            .title(format!("📈 Classes (Total: {})", app.total_detections)),
+    );
+
+    f.render_widget(list, area);
+}
+
+fn draw_living_beings(f: &mut Frame, app: &App, area: Rect) {
+    let mut beings: Vec<_> = app.living_beings.values().collect();
+    beings.sort_by(|a, b| b.unique_ids.len().cmp(&a.unique_ids.len()));
+
+    let items: Vec<ListItem> = beings
+        .iter()
+        .map(|being| {
+            let unique_count = being.unique_ids.len();
+            let icon = match being.class_name.as_str() {
+                "person" => "👤",
+                "dog" => "🐕",
+                "cat" => "🐈",
+                "bird" => "🐦",
+                "horse" => "🐴",
+                _ => "🦓",
+            };
+            
+            let status = if being.last_seen_frame == app.frame_num {
+                "LIVE"
+            } else if app.frame_num - being.last_seen_frame < 30 {
+                "RECENT"
+            } else {
+                "PAST"
+            };
+            
+            let style_color = match status {
+                "LIVE" => Color::Green,
+                "RECENT" => Color::Yellow,
+                _ => Color::Gray,
+            };
+            
+            ListItem::new(Line::from(vec![
+                Span::raw(format!("{} ", icon)),
+                Span::styled(
+                    format!("{:<8} ", being.class_name),
+                    Style::default().fg(style_color).add_modifier(Modifier::BOLD)
+                ),
+                Span::raw(format!("×{} ", unique_count.max(1))),
+                Span::styled(status, Style::default().fg(style_color)),
+            ]))
+        })
+        .collect();
+
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!("🐾 Living Beings ({} unique)", app.total_living_seen)),
     );
 
     f.render_widget(list, area);

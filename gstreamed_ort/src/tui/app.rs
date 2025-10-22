@@ -72,6 +72,10 @@ pub struct App {
     pub class_counts: HashMap<String, usize>,
     pub total_detections: usize,
     
+    // Living beings tracking
+    pub living_beings: HashMap<String, LivingBeingStats>,
+    pub total_living_seen: usize,
+    
     // Performance metrics
     pub current_perf: PerformanceStats,
     pub perf_history: VecDeque<PerformanceStats>,
@@ -85,6 +89,15 @@ pub struct App {
     last_frame_time: Instant,
     frame_count_for_fps: u32,
     fps_calc_start: Instant,
+}
+
+#[derive(Debug, Clone)]
+pub struct LivingBeingStats {
+    pub class_name: String,
+    pub first_seen_frame: u64,
+    pub last_seen_frame: u64,
+    pub total_count: usize,
+    pub unique_ids: std::collections::HashSet<i64>,
 }
 
 impl App {
@@ -103,6 +116,8 @@ impl App {
             current_detections: Vec::new(),
             class_counts: HashMap::new(),
             total_detections: 0,
+            living_beings: HashMap::new(),
+            total_living_seen: 0,
             current_perf: PerformanceStats {
                 inference_ms: 0.0,
                 preprocess_ms: 0.0,
@@ -117,6 +132,13 @@ impl App {
             frame_count_for_fps: 0,
             fps_calc_start: Instant::now(),
         }
+    }
+    
+    fn is_living_being(class_name: &str) -> bool {
+        matches!(class_name, 
+            "person" | "cat" | "dog" | "horse" | "sheep" | "cow" | 
+            "elephant" | "bear" | "zebra" | "giraffe" | "bird"
+        )
     }
     
     pub fn update(&mut self, msg: TuiMessage) {
@@ -139,6 +161,33 @@ impl App {
                 }
                 self.total_detections += detections.len();
                 
+                // Track living beings
+                for det in &detections {
+                    if Self::is_living_being(&det.class_name) {
+                        let entry = self.living_beings
+                            .entry(det.class_name.clone())
+                            .or_insert_with(|| LivingBeingStats {
+                                class_name: det.class_name.clone(),
+                                first_seen_frame: frame_num,
+                                last_seen_frame: frame_num,
+                                total_count: 0,
+                                unique_ids: std::collections::HashSet::new(),
+                            });
+                        
+                        entry.last_seen_frame = frame_num;
+                        entry.total_count += 1;
+                        
+                        if let Some(tracker_id) = det.tracker_id {
+                            entry.unique_ids.insert(tracker_id);
+                        }
+                    }
+                }
+                
+                // Update total living seen count
+                self.total_living_seen = self.living_beings.values()
+                    .map(|stats| stats.unique_ids.len().max(1))
+                    .sum();
+                
                 // Update performance stats
                 let perf = PerformanceStats::from(&performance);
                 self.current_perf = perf.clone();
@@ -152,7 +201,7 @@ impl App {
                 let elapsed = self.fps_calc_start.elapsed().as_secs_f32();
                 if elapsed >= 1.0 {
                     self.fps = self.frame_count_for_fps as f32 / elapsed;
-                    self.avg_fps = self.fps; // Simplified for now
+                    self.avg_fps = self.fps;
                     self.frame_count_for_fps = 0;
                     self.fps_calc_start = Instant::now();
                 }
@@ -160,7 +209,6 @@ impl App {
                 self.last_frame_time = Instant::now();
             }
             TuiMessage::Error(err) => {
-                // Could add error display
                 log::error!("TUI received error: {}", err);
             }
             TuiMessage::Finished => {

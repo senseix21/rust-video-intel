@@ -28,12 +28,17 @@ pub fn process_video_with_tui(
     live: bool,
     session: Session,
 ) -> Result<()> {
+    // Disable GStreamer debug output to prevent TUI interference
+    std::env::set_var("GST_DEBUG", "0");
+    std::env::set_var("GST_DEBUG_NO_COLOR", "1");
+    
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
 
     // Create channel for worker thread to send updates
     let (tx, rx) = mpsc::channel();
@@ -67,12 +72,17 @@ pub fn process_webcam_with_tui(
     live: bool,
     session: Session,
 ) -> Result<()> {
+    // Disable GStreamer debug output to prevent TUI interference
+    std::env::set_var("GST_DEBUG", "0");
+    std::env::set_var("GST_DEBUG_NO_COLOR", "1");
+    
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
 
     // Create channel
     let (tx, rx) = mpsc::channel();
@@ -139,13 +149,21 @@ fn run_tui_loop(
         }
 
         // Process messages from worker thread
+        let mut received_update = false;
         while let Ok(msg) = rx.try_recv() {
+            received_update = true;
             match msg {
                 TuiMessage::Finished => {
                     app.mark_finished();
                 }
                 _ => app.update(msg),
             }
+        }
+        
+        // Force render if we received an update
+        if received_update {
+            terminal.draw(|f| ui::draw(f, &app))?;
+            last_render = Instant::now();
         }
 
         if app.should_quit() {

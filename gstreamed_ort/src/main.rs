@@ -36,16 +36,31 @@ pub struct Args {
 }
 
 fn main() -> anyhow::Result<()> {
-    // Initialize logging.
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "warn,gstreamed_ort=info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     let args = Args::parse();
+
+    // Initialize logging - suppress if TUI is active
+    if !args.tui {
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "warn,gstreamed_ort=info".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    } else {
+        // For TUI mode, completely disable all logging output
+        // This prevents any log output from interfering with the TUI
+        use tracing_subscriber::layer::SubscriberExt;
+        use tracing_subscriber::util::SubscriberInitExt;
+        
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::EnvFilter::new("off"))
+            .with(tracing_subscriber::fmt::layer().with_writer(std::io::sink))
+            .init();
+        
+        // Also disable log crate output
+        log::set_max_level(log::LevelFilter::Off);
+    }
 
     // Load model into ort.
     let (ep, ep_name) = if args.cuda {
