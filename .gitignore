@@ -1,2 +1,24 @@
 **/Cargo.lock
-**/target/
+**/target
+
+# Surveillance specific
+surveillance/_data
+surveillance/*.md
+!surveillance/readme.md
+surveillance/*.mp4
+surveillance/*.mkv
+surveillance/*.pt
+surveillance/*.onnx
+surveillance/*.jpg
+surveillance/*.dot
+surveillance/_dot
+surveillance/*.json
+surveillance/*.rrd
+
+# IDE
+
+surveillance/.idea
+# Scripts
+surveillance/candle.sh
+
+surveillance/fix_ort_hack.sh
