@@ -1,0 +1,27 @@
+[package]
+name = "gstreamed_ort"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# workspace
+gstreamed_common.workspace = true
+inference_common.workspace = true
+ort_common.workspace = true
+# ext
+anyhow.workspace = true
+clap.workspace = true
+crossterm = "0.28"
+fast_image_resize = { version = "5.1.0", features = ["image"] }
+gstreamer.workspace = true
+image.workspace = true
+imageproc.workspace = true
+log.workspace = true
+ndarray.workspace = true
+ort.workspace = true
+ratatui = "0.28"
+serde_json = { version = "1.0.134" }
+tracing.workspace = true
+tracing-subscriber.workspace = true

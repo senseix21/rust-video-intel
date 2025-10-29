@@ -1,0 +1,20 @@
+[package]
+name = "gstreamed_common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# workspace
+inference_common.workspace = true
+# external
+ab_glyph = { version = "0.2.28" }
+anyhow.workspace = true
+gstreamer.workspace = true
+gstreamer-pbutils = { version = "0.23.4" }
+gstreamer-video = { version = "0.23.4" }
+image.workspace = true
+imageproc.workspace = true
+log.workspace = true
+serde = { version = "1.0.216", features = ["derive"] }

@@ -1,0 +1,34 @@
+[workspace]
+resolver = "2"
+members = [
+    "ffmpeg_ort",
+  # "gstreamed_candle",  # Disabled: requires CUDA
+    "gstreamed_common",
+    "gstreamed_ort",
+    "inference_common",
+    "into_rerun",
+    "ort_common",
+]
+
+[workspace.dependencies]
+# internal dependencies
+gstreamed_common = { path = "gstreamed_common" }
+inference_common = { path = "inference_common" }
+ort_common = { path = "ort_common" }
+# external dependencies
+anyhow = { version = "1.0.97", features = ["backtrace"] }
+clap = { version = "4.5.36", features = ["derive"] }
+gstreamer = { version = "0.23.5" }
+image = { version = "0.25.8", default-features = false, features = [
+    "jpeg",
+    "png",
+] }
+imageproc = { version = "0.25.0", default-features = false }
+log = { version = "0.4.27" }
+ndarray = { version = "0.16.1" }
+ort = { version = "2.0.0-rc.10", default-features = true, features = [
+    "ndarray",
+    "cuda",
+] }
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
