@@ -32,3 +32,4 @@ ort = { version = "2.0.0-rc.10", default-features = true, features = [
 ] }
 tracing = { version = "0.1.41" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+uuid = { version = "1.11.0", features = ["v4"] }

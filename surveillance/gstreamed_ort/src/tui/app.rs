@@ -3,6 +3,8 @@ use std::time::Instant;
 use inference_common::detection_logger::DetectionLog;
 use inference_common::frame_times::FrameTimes;
 
+use super::roi::{RoiZone, load_zones, save_zones};
+
 const MAX_HISTORY: usize = 1000;
 const PERF_HISTORY_SIZE: usize = 60;
 
@@ -52,6 +54,13 @@ impl From<&FrameTimes> for PerformanceStats {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TuiMode {
+    Monitor,
+    ZoneList,
+    ZoneEdit,
+}
+
 pub struct App {
     // Video info
     pub filename: String,
@@ -85,6 +94,12 @@ pub struct App {
     pub selected_index: usize,
     pub scroll_offset: usize,
     
+    // ROI zones
+    pub tui_mode: TuiMode,
+    pub zones: Vec<RoiZone>,
+    pub selected_zone_idx: usize,
+    pub zone_draft: Option<RoiZone>,
+    
     // Timing
     last_frame_time: Instant,
     frame_count_for_fps: u32,
@@ -102,6 +117,11 @@ pub struct LivingBeingStats {
 
 impl App {
     pub fn new() -> Self {
+        let zones = load_zones().unwrap_or_else(|e| {
+            eprintln!("Failed to load zones: {}", e);
+            Vec::new()
+        });
+
         Self {
             filename: String::from("Loading..."),
             width: 0,
@@ -128,6 +148,10 @@ impl App {
             avg_fps: 0.0,
             selected_index: 0,
             scroll_offset: 0,
+            tui_mode: TuiMode::Monitor,
+            zones,
+            selected_zone_idx: 0,
+            zone_draft: None,
             last_frame_time: Instant::now(),
             frame_count_for_fps: 0,
             fps_calc_start: Instant::now(),
@@ -277,5 +301,137 @@ impl App {
             }
         }
         0.0
+    }
+    
+    /// Check if a bounding box overlaps with a target region
+    pub fn bbox_overlaps(bbox: &DetectionLog, target_xmin: f32, target_ymin: f32, target_xmax: f32, target_ymax: f32) -> bool {
+        !(bbox.bbox.xmax < target_xmin 
+          || bbox.bbox.xmin > target_xmax
+          || bbox.bbox.ymax < target_ymin
+          || bbox.bbox.ymin > target_ymax)
+    }
+    
+    /// Check if a bounding box is completely contained within a target region
+    pub fn bbox_contained_in(bbox: &DetectionLog, target_xmin: f32, target_ymin: f32, target_xmax: f32, target_ymax: f32) -> bool {
+        bbox.bbox.xmin >= target_xmin
+            && bbox.bbox.ymin >= target_ymin
+            && bbox.bbox.xmax <= target_xmax
+            && bbox.bbox.ymax <= target_ymax
+    }
+    
+    /// Check if a bounding box center point is within a target region
+    pub fn bbox_center_in(bbox: &DetectionLog, target_xmin: f32, target_ymin: f32, target_xmax: f32, target_ymax: f32) -> bool {
+        let center_x = bbox.attributes.position.x_center;
+        let center_y = bbox.attributes.position.y_center;
+        center_x >= target_xmin && center_x <= target_xmax
+            && center_y >= target_ymin && center_y <= target_ymax
+    }
+    
+    /// Filter detections that overlap with a target BBox
+    pub fn filter_detections_overlapping(
+        detections: &[DetectionLog],
+        target_xmin: f32,
+        target_ymin: f32,
+        target_xmax: f32,
+        target_ymax: f32,
+    ) -> Vec<&DetectionLog> {
+        detections
+            .iter()
+            .filter(|det| Self::bbox_overlaps(det, target_xmin, target_ymin, target_xmax, target_ymax))
+            .collect()
+    }
+    
+    /// Filter detections completely contained within a target BBox
+    pub fn filter_detections_contained(
+        detections: &[DetectionLog],
+        target_xmin: f32,
+        target_ymin: f32,
+        target_xmax: f32,
+        target_ymax: f32,
+    ) -> Vec<&DetectionLog> {
+        detections
+            .iter()
+            .filter(|det| Self::bbox_contained_in(det, target_xmin, target_ymin, target_xmax, target_ymax))
+            .collect()
+    }
+    
+    /// Filter detections with center point in a target BBox
+    pub fn filter_detections_center_in(
+        detections: &[DetectionLog],
+        target_xmin: f32,
+        target_ymin: f32,
+        target_xmax: f32,
+        target_ymax: f32,
+    ) -> Vec<&DetectionLog> {
+        detections
+            .iter()
+            .filter(|det| Self::bbox_center_in(det, target_xmin, target_ymin, target_xmax, target_ymax))
+            .collect()
+    }
+    
+    /// Find first detection overlapping with target BBox
+    pub fn find_detection_at(
+        detections: &[DetectionLog],
+        target_xmin: f32,
+        target_ymin: f32,
+        target_xmax: f32,
+        target_ymax: f32,
+    ) -> Option<&DetectionLog> {
+        detections
+            .iter()
+            .find(|det| Self::bbox_overlaps(det, target_xmin, target_ymin, target_xmax, target_ymax))
+    }
+
+    // ===== ROI Zone Methods =====
+    
+    /// Get all detections inside a specific zone
+    pub fn get_zone_detections(&self, zone: &RoiZone) -> Vec<&DetectionLog> {
+        self.current_detections
+            .iter()
+            .filter(|det| zone.contains_detection(det, self.width, self.height))
+            .collect()
+    }
+    
+    /// Create a new zone
+    pub fn create_zone(&mut self, name: String) -> usize {
+        let zone = RoiZone::new(name);
+        self.zones.push(zone);
+        self.zones.len() - 1
+    }
+    
+    /// Delete zone at index
+    pub fn delete_zone(&mut self, idx: usize) {
+        if idx < self.zones.len() {
+            self.zones.remove(idx);
+            if self.selected_zone_idx >= self.zones.len() && self.selected_zone_idx > 0 {
+                self.selected_zone_idx = self.zones.len() - 1;
+            }
+            let _ = save_zones(&self.zones);
+        }
+    }
+    
+    /// Toggle zone enabled/disabled
+    pub fn toggle_zone(&mut self, idx: usize) {
+        if let Some(zone) = self.zones.get_mut(idx) {
+            zone.enabled = !zone.enabled;
+            let _ = save_zones(&self.zones);
+        }
+    }
+    
+    /// Save zones to disk
+    pub fn save_zones(&self) -> anyhow::Result<()> {
+        save_zones(&self.zones)
+    }
+    
+    /// Count total detections in all enabled zones
+    pub fn count_zone_detections(&self) -> HashMap<String, usize> {
+        let mut counts = HashMap::new();
+        for zone in &self.zones {
+            if zone.enabled {
+                let count = self.get_zone_detections(zone).len();
+                counts.insert(zone.id.clone(), count);
+            }
+        }
+        counts
     }
 }

@@ -1,4 +1,5 @@
 pub mod app;
+pub mod roi;
 pub mod ui;
 mod events;
 

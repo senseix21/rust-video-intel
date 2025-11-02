@@ -25,3 +25,5 @@ ratatui = "0.28"
 serde_json = { version = "1.0.134" }
 tracing.workspace = true
 tracing-subscriber.workspace = true
+uuid.workspace = true
+serde = { version = "1.0", features = ["derive"] }
