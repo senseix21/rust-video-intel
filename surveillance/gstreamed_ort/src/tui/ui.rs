@@ -8,9 +8,17 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui::app::App;
+use crate::tui::app::{App, TuiMode};
 
 pub fn draw(f: &mut Frame, app: &App) {
+    match app.tui_mode {
+        TuiMode::Monitor => draw_monitor_mode(f, app),
+        TuiMode::ZoneList => draw_zone_list_mode(f, app),
+        TuiMode::ZoneEdit => draw_zone_edit_mode(f, app),
+    }
+}
+
+fn draw_monitor_mode(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -375,7 +383,7 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
         format!("✓ Processing complete. {} total detections.", app.total_detections)
     } else {
         format!(
-            "Processing frame {}... {} detections in current frame | {} total",
+            "Processing frame {}... {} detections | {} total | [Z] Zones | [P] Pause | [Q] Quit",
             app.frame_num,
             app.current_detections.len(),
             app.total_detections
@@ -387,4 +395,269 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
         .block(Block::default().borders(Borders::ALL));
 
     f.render_widget(footer, area);
+}
+
+// ===== Zone Management UI =====
+
+fn draw_zone_list_mode(f: &mut Frame, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),  // Header
+            Constraint::Min(10),    // Zone list
+            Constraint::Length(5),  // Help
+        ])
+        .split(f.area());
+
+    // Header
+    let zone_count = format!(" | {} zones", app.zones.len());
+    let header = Paragraph::new(Line::from(vec![
+        Span::styled(
+            " ROI Zone Management ",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(&zone_count),
+    ]))
+    .block(Block::default().borders(Borders::ALL));
+    f.render_widget(header, chunks[0]);
+
+    // Zone list
+    draw_zone_list(f, app, chunks[1]);
+
+    // Help footer
+    let help_text = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[N]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::raw(" New  "),
+            Span::styled("[E]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::raw(" Edit  "),
+            Span::styled("[D]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::raw(" Delete  "),
+            Span::styled("[Space]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw(" Toggle  "),
+            Span::styled("[Esc]", Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
+            Span::raw(" Back"),
+        ]),
+    ];
+    let help = Paragraph::new(help_text)
+        .block(Block::default().borders(Borders::ALL).title("Controls"));
+    f.render_widget(help, chunks[2]);
+}
+
+fn draw_zone_list(f: &mut Frame, app: &App, area: Rect) {
+    if app.zones.is_empty() {
+        let empty_msg = Paragraph::new(vec![
+            Line::from(""),
+            Line::from("  No zones configured"),
+            Line::from(""),
+            Line::from("  Press 'N' to create a new zone"),
+        ])
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::ALL).title("Zones"));
+        f.render_widget(empty_msg, area);
+        return;
+    }
+
+    let zone_counts = app.count_zone_detections();
+    
+    let rows: Vec<Row> = app.zones.iter().enumerate().map(|(i, zone)| {
+        let status = if zone.enabled { "✓" } else { "✗" };
+        let count = zone_counts.get(&zone.id).copied().unwrap_or(0);
+        let area_pct = zone.bbox.area() * 100.0;
+        
+        let style = if i == app.selected_zone_idx {
+            Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        
+        let status_color = if zone.enabled { Color::Green } else { Color::Red };
+        
+        Row::new(vec![
+            Cell::from(format!("{}", i + 1)),
+            Cell::from(zone.name.clone()),
+            Cell::from(Span::styled(status, Style::default().fg(status_color))),
+            Cell::from(format!("{}", count)),
+            Cell::from(format!("{:.1}%", area_pct)),
+            Cell::from(format!("({:.2},{:.2})", zone.bbox.xmin, zone.bbox.ymin)),
+            Cell::from(format!("({:.2},{:.2})", zone.bbox.xmax, zone.bbox.ymax)),
+        ])
+        .style(style)
+    }).collect();
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(3),   // #
+            Constraint::Min(15),     // Name
+            Constraint::Length(6),   // Status
+            Constraint::Length(8),   // Objects
+            Constraint::Length(7),   // Area
+            Constraint::Length(12),  // Top-Left
+            Constraint::Length(12),  // Bottom-Right
+        ],
+    )
+    .header(
+        Row::new(vec![
+            Cell::from("#"),
+            Cell::from("Name"),
+            Cell::from("Active"),
+            Cell::from("Objects"),
+            Cell::from("Area"),
+            Cell::from("Top-Left"),
+            Cell::from("Bot-Right"),
+        ])
+        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .bottom_margin(1),
+    )
+    .block(Block::default().borders(Borders::ALL).title("Zones"));
+
+    f.render_widget(table, area);
+}
+
+fn draw_zone_edit_mode(f: &mut Frame, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),  // Header
+            Constraint::Min(10),    // Editor
+            Constraint::Length(3),  // Help
+        ])
+        .split(f.area());
+
+    // Header
+    let header = Paragraph::new(Line::from(vec![
+        Span::styled(
+            " Zone Editor ",
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        ),
+    ]))
+    .block(Block::default().borders(Borders::ALL));
+    f.render_widget(header, chunks[0]);
+
+    // Editor
+    draw_zone_editor(f, app, chunks[1]);
+
+    // Help footer
+    let help = Paragraph::new(Line::from(vec![
+        Span::styled("[↑↓←→]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(" Adjust  "),
+        Span::styled("[Shift+↑↓←→]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(" Fine  "),
+        Span::styled("[S]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::raw(" Save  "),
+        Span::styled("[Esc]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::raw(" Cancel"),
+    ]))
+    .block(Block::default().borders(Borders::ALL).title("Controls"));
+    f.render_widget(help, chunks[2]);
+}
+
+fn draw_zone_editor(f: &mut Frame, app: &App, area: Rect) {
+    let Some(zone) = &app.zone_draft else {
+        let error = Paragraph::new("No zone draft available")
+            .style(Style::default().fg(Color::Red))
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(error, area);
+        return;
+    };
+
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    // LEFT: Form
+    let form_lines = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Name: ", Style::default().fg(Color::Yellow)),
+            Span::raw(&zone.name),
+        ]),
+        Line::from(""),
+        Line::from(Span::styled("Top-Left Corner:", Style::default().fg(Color::Cyan))),
+        Line::from(format!(
+            "  X: {:.1}% ({} px)",
+            zone.bbox.xmin * 100.0,
+            (zone.bbox.xmin * app.width as f32) as u32
+        )),
+        Line::from(format!(
+            "  Y: {:.1}% ({} px)",
+            zone.bbox.ymin * 100.0,
+            (zone.bbox.ymin * app.height as f32) as u32
+        )),
+        Line::from(""),
+        Line::from(Span::styled("Bottom-Right Corner:", Style::default().fg(Color::Cyan))),
+        Line::from(format!(
+            "  X: {:.1}% ({} px)",
+            zone.bbox.xmax * 100.0,
+            (zone.bbox.xmax * app.width as f32) as u32
+        )),
+        Line::from(format!(
+            "  Y: {:.1}% ({} px)",
+            zone.bbox.ymax * 100.0,
+            (zone.bbox.ymax * app.height as f32) as u32
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Area: ", Style::default().fg(Color::Yellow)),
+            Span::raw(format!("{:.1}% of frame", zone.bbox.area() * 100.0)),
+        ]),
+    ];
+
+    let form = Paragraph::new(form_lines)
+        .block(Block::default().borders(Borders::ALL).title("Properties"));
+    f.render_widget(form, chunks[0]);
+
+    // RIGHT: Preview
+    draw_zone_preview(f, app, zone, chunks[1]);
+}
+
+fn draw_zone_preview(f: &mut Frame, app: &App, zone: &crate::tui::roi::RoiZone, area: Rect) {
+    let inner = Block::default()
+        .borders(Borders::ALL)
+        .title("Preview")
+        .inner(area);
+    
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Preview");
+    f.render_widget(block, area);
+
+    // Calculate zone rectangle in preview space
+    let preview_w = inner.width as f32;
+    let preview_h = inner.height as f32;
+    
+    let x1 = (zone.bbox.xmin * preview_w) as u16 + inner.x;
+    let y1 = (zone.bbox.ymin * preview_h) as u16 + inner.y;
+    let x2 = (zone.bbox.xmax * preview_w) as u16 + inner.x;
+    let y2 = (zone.bbox.ymax * preview_h) as u16 + inner.y;
+
+    // Draw ASCII box representation
+    let mut lines = Vec::new();
+    for y in inner.y..inner.y + inner.height {
+        let mut line_spans = Vec::new();
+        for x in inner.x..inner.x + inner.width {
+            let is_border = (y == y1 || y == y2) && (x >= x1 && x <= x2)
+                || (x == x1 || x == x2) && (y >= y1 && y <= y2);
+            let is_corner = (x == x1 || x == x2) && (y == y1 || y == y2);
+            
+            if is_corner {
+                line_spans.push(Span::styled("┼", Style::default().fg(Color::Yellow)));
+            } else if is_border {
+                if y == y1 || y == y2 {
+                    line_spans.push(Span::styled("─", Style::default().fg(Color::Yellow)));
+                } else {
+                    line_spans.push(Span::styled("│", Style::default().fg(Color::Yellow)));
+                }
+            } else {
+                line_spans.push(Span::raw(" "));
+            }
+        }
+        lines.push(Line::from(line_spans));
+    }
+
+    let preview = Paragraph::new(lines);
+    f.render_widget(preview, inner);
 }

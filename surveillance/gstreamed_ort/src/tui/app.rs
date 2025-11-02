@@ -434,4 +434,97 @@ impl App {
         }
         counts
     }
+
+    // ===== TUI Mode Navigation Methods =====
+    
+    /// Enter zone list mode from monitor
+    pub fn enter_zone_list(&mut self) {
+        self.tui_mode = TuiMode::ZoneList;
+        self.selected_zone_idx = 0;
+    }
+    
+    /// Return to monitor mode
+    pub fn exit_to_monitor(&mut self) {
+        self.tui_mode = TuiMode::Monitor;
+        self.zone_draft = None;
+    }
+    
+    /// Navigate to previous zone in list
+    pub fn select_previous_zone(&mut self) {
+        if self.selected_zone_idx > 0 {
+            self.selected_zone_idx -= 1;
+        }
+    }
+    
+    /// Navigate to next zone in list
+    pub fn select_next_zone(&mut self) {
+        if !self.zones.is_empty() && self.selected_zone_idx < self.zones.len() - 1 {
+            self.selected_zone_idx += 1;
+        }
+    }
+    
+    /// Create a new zone and enter edit mode
+    pub fn create_new_zone(&mut self) {
+        let zone = RoiZone::new("New Zone".to_string());
+        self.zone_draft = Some(zone);
+        self.tui_mode = TuiMode::ZoneEdit;
+    }
+    
+    /// Edit the currently selected zone
+    pub fn edit_selected_zone(&mut self) {
+        if let Some(zone) = self.zones.get(self.selected_zone_idx) {
+            self.zone_draft = Some(zone.clone());
+            self.tui_mode = TuiMode::ZoneEdit;
+        }
+    }
+    
+    /// Delete the currently selected zone
+    pub fn delete_selected_zone(&mut self) {
+        self.delete_zone(self.selected_zone_idx);
+    }
+    
+    /// Toggle the currently selected zone
+    pub fn toggle_selected_zone(&mut self) {
+        self.toggle_zone(self.selected_zone_idx);
+    }
+    
+    /// Save the zone draft
+    pub fn save_zone_draft(&mut self) {
+        if let Some(mut zone) = self.zone_draft.take() {
+            zone.validate_and_clamp();
+            
+            // Check if we're editing an existing zone
+            if let Some(idx) = self.zones.iter().position(|z| z.id == zone.id) {
+                self.zones[idx] = zone;
+            } else {
+                self.zones.push(zone);
+            }
+            
+            let _ = save_zones(&self.zones);
+            self.tui_mode = TuiMode::ZoneList;
+        }
+    }
+    
+    /// Cancel zone editing
+    pub fn cancel_zone_edit(&mut self) {
+        self.zone_draft = None;
+        self.tui_mode = TuiMode::ZoneList;
+    }
+    
+    /// Adjust zone draft name
+    pub fn set_zone_name(&mut self, name: String) {
+        if let Some(zone) = &mut self.zone_draft {
+            zone.name = name;
+        }
+    }
+    
+    /// Adjust zone coordinates
+    pub fn adjust_zone_bbox(&mut self, dx_min: f32, dy_min: f32, dx_max: f32, dy_max: f32) {
+        if let Some(zone) = &mut self.zone_draft {
+            zone.bbox.xmin = (zone.bbox.xmin + dx_min).clamp(0.0, 1.0);
+            zone.bbox.ymin = (zone.bbox.ymin + dy_min).clamp(0.0, 1.0);
+            zone.bbox.xmax = (zone.bbox.xmax + dx_max).clamp(0.0, 1.0);
+            zone.bbox.ymax = (zone.bbox.ymax + dy_max).clamp(0.0, 1.0);
+        }
+    }
 }

@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -19,7 +19,7 @@ use ort::session::Session;
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crate::process_video;
-use app::{App, TuiMessage};
+use crate::tui::app::{App, TuiMessage, TuiMode};
 
 const UI_FPS: u64 = 30;
 const UI_FRAME_TIME: Duration = Duration::from_millis(1000 / UI_FPS);
@@ -129,21 +129,100 @@ fn run_tui_loop(
         if event::poll(Duration::from_millis(16))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                            app.quit();
+                    match app.tui_mode {
+                        TuiMode::Monitor => {
+                            match key.code {
+                                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                                    app.quit();
+                                }
+                                KeyCode::Esc => {
+                                    app.quit();
+                                }
+                                KeyCode::Char('p') | KeyCode::Char('P') | KeyCode::Char(' ') => {
+                                    app.toggle_pause();
+                                }
+                                KeyCode::Char('z') | KeyCode::Char('Z') => {
+                                    app.enter_zone_list();
+                                }
+                                KeyCode::Up => app.scroll_up(),
+                                KeyCode::Down => app.scroll_down(),
+                                KeyCode::PageUp => app.page_up(),
+                                KeyCode::PageDown => app.page_down(),
+                                KeyCode::Home => app.scroll_home(),
+                                KeyCode::End => app.scroll_end(),
+                                KeyCode::Enter => app.select_current(),
+                                _ => {}
+                            }
                         }
-                        KeyCode::Char('p') | KeyCode::Char('P') | KeyCode::Char(' ') => {
-                            app.toggle_pause();
+                        TuiMode::ZoneList => {
+                            match key.code {
+                                KeyCode::Esc => {
+                                    app.exit_to_monitor();
+                                }
+                                KeyCode::Up => {
+                                    app.select_previous_zone();
+                                }
+                                KeyCode::Down => {
+                                    app.select_next_zone();
+                                }
+                                KeyCode::Char('n') | KeyCode::Char('N') => {
+                                    app.create_new_zone();
+                                }
+                                KeyCode::Char('e') | KeyCode::Char('E') => {
+                                    app.edit_selected_zone();
+                                }
+                                KeyCode::Char('d') | KeyCode::Char('D') => {
+                                    app.delete_selected_zone();
+                                }
+                                KeyCode::Char(' ') => {
+                                    app.toggle_selected_zone();
+                                }
+                                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                                    app.quit();
+                                }
+                                _ => {}
+                            }
                         }
-                        KeyCode::Up => app.scroll_up(),
-                        KeyCode::Down => app.scroll_down(),
-                        KeyCode::PageUp => app.page_up(),
-                        KeyCode::PageDown => app.page_down(),
-                        KeyCode::Home => app.scroll_home(),
-                        KeyCode::End => app.scroll_end(),
-                        KeyCode::Enter => app.select_current(),
-                        _ => {}
+                        TuiMode::ZoneEdit => {
+                            let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+                            let step = if shift { 0.01 } else { 0.05 };
+                            
+                            match key.code {
+                                KeyCode::Esc => {
+                                    app.cancel_zone_edit();
+                                }
+                                KeyCode::Char('s') | KeyCode::Char('S') => {
+                                    app.save_zone_draft();
+                                }
+                                // Adjust top-left corner
+                                KeyCode::Left if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    app.adjust_zone_bbox(-step, 0.0, 0.0, 0.0);
+                                }
+                                KeyCode::Right if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    app.adjust_zone_bbox(step, 0.0, 0.0, 0.0);
+                                }
+                                KeyCode::Up if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    app.adjust_zone_bbox(0.0, -step, 0.0, 0.0);
+                                }
+                                KeyCode::Down if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    app.adjust_zone_bbox(0.0, step, 0.0, 0.0);
+                                }
+                                // Adjust bottom-right corner (default)
+                                KeyCode::Left => {
+                                    app.adjust_zone_bbox(0.0, 0.0, -step, 0.0);
+                                }
+                                KeyCode::Right => {
+                                    app.adjust_zone_bbox(0.0, 0.0, step, 0.0);
+                                }
+                                KeyCode::Up => {
+                                    app.adjust_zone_bbox(0.0, 0.0, 0.0, -step);
+                                }
+                                KeyCode::Down => {
+                                    app.adjust_zone_bbox(0.0, 0.0, 0.0, step);
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                 }
             }

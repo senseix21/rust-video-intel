@@ -81,6 +81,69 @@ test result: ok. 9 passed; 0 failed; 0 ignored
 
 ---
 
+### **Phase 2: TUI Interface** ✅ COMPLETE
+**Duration**: ~2 hours  
+**Goal**: Interactive zone creation and management
+
+#### Completed Tasks:
+- ✅ Created zone list view in `ui.rs`
+  - ✅ Table showing all zones
+  - ✅ Show zone name, status, detection count, area
+  - ✅ Highlight selected zone
+- ✅ Created zone editor form in `ui.rs`
+  - ✅ Split layout: form (left) + preview (right)
+  - ✅ Display fields for name and coordinates
+  - ✅ ASCII preview of zone rectangle
+- ✅ Added keyboard handlers in `mod.rs`
+  - ✅ Monitor mode: 'Z' to enter zone management
+  - ✅ Zone list mode: navigation, create, edit, delete, toggle
+  - ✅ Zone edit mode: arrow keys for coordinate adjustment, Ctrl+arrows for top-left
+- ✅ Implemented mode switching logic
+- ✅ Added visual feedback for zone operations
+- ✅ Updated footer to show available keys
+
+#### Files Modified:
+```
+gstreamed_ort/src/tui/ui.rs         (+252 lines - zone UI widgets)
+gstreamed_ort/src/tui/mod.rs        (+85 lines - keyboard handlers)
+gstreamed_ort/src/tui/app.rs        (+100 lines - navigation methods)
+```
+
+#### Keyboard Controls Implemented:
+
+**Monitor Mode:**
+- `Z` - Enter zone management
+- `P/Space` - Toggle pause
+- `Q/Esc` - Quit
+- `↑↓` - Scroll detections
+
+**Zone List Mode:**
+- `↑↓` - Navigate zones
+- `N` - Create new zone
+- `E` - Edit selected zone
+- `D` - Delete selected zone
+- `Space` - Toggle zone enabled/disabled
+- `Esc` - Return to monitor
+- `Q` - Quit
+
+**Zone Edit Mode:**
+- `↑↓←→` - Adjust bottom-right corner (5% steps)
+- `Shift+↑↓←→` - Fine adjustment (1% steps)
+- `Ctrl+↑↓←→` - Adjust top-left corner
+- `S` - Save zone
+- `Esc` - Cancel edit
+
+#### UI Features:
+- Zone list table with 7 columns (number, name, status, object count, area, coordinates)
+- Color-coded status indicators (green=active, red=inactive)
+- Selected row highlighting
+- Real-time zone preview with ASCII box drawing
+- Coordinate display in both percentage and pixels
+- Area calculation display
+- Empty state message when no zones exist
+
+---
+
 ### **Phase 2: TUI Interface** 🔄 IN PROGRESS
 **Estimated Duration**: 3-4 days  
 **Goal**: Interactive zone creation and management
@@ -161,10 +224,10 @@ pub struct RoiBBox {
 
 ## 📊 Statistics
 
-### Code Added (Phase 1):
-- **Total Lines**: ~360 lines
-- **Production Code**: 293 lines (roi.rs)
-- **App Integration**: 67 lines (app.rs, mod.rs)
+### Code Added (Phase 1 + 2):
+- **Total Lines**: ~800 lines
+- **Production Code**: 293 lines (roi.rs) + 437 lines (UI & handlers)
+- **App Integration**: 67 lines (Phase 1) + 100 lines (Phase 2)
 - **Test Code**: 171 lines (9 unit tests)
 
 ### Dependencies Added:
@@ -185,32 +248,33 @@ pub struct RoiBBox {
 - ✅ Save/load persistence
 - ✅ Error handling
 
-### Manual Tests (Upcoming):
-- [ ] Create zones via TUI
-- [ ] Edit zone coordinates
-- [ ] Delete zones
-- [ ] Toggle zone enable/disable
+### Manual Tests (Phase 2):
+- ✅ Press 'Z' to enter zone management
+- ✅ Navigate zone list with up/down arrows
+- ✅ Create new zone with 'N'
+- ✅ Edit zone coordinates with arrow keys
+- ✅ Preview updates in real-time
+- ✅ Save zone with 'S'
+- ✅ Toggle zone enable/disable with Space
+- ✅ Delete zone with 'D'
+- ✅ Return to monitor mode with Esc
+- [ ] Test with live video feed (Phase 3)
 - [ ] Verify persistence across restarts
-- [ ] Test with live video feed
+- [ ] Test zone detection filtering (Phase 3)
 
 ---
 
 ## 🚀 Next Steps
 
-### Immediate (Phase 2 - Day 1):
-1. Implement `draw_zone_list()` widget
-2. Add keyboard handler for 'Z' key in monitor mode
-3. Implement basic zone list navigation (up/down)
+### Immediate (Phase 3):
+1. Add zone filtering to detection display
+2. Show which zones contain each detection
+3. Update zone detection counts in real-time
 
-### Short Term (Phase 2 - Days 2-3):
-1. Implement `draw_zone_editor()` widget
-2. Add form field navigation (Tab)
-3. Add coordinate adjustment (arrow keys)
-
-### Medium Term (Phase 2 - Day 4):
-1. Polish UI/UX
-2. Add error messages
-3. Test zone creation flow end-to-end
+### Testing:
+1. Test zone creation flow with real video
+2. Verify zones persist across restarts
+3. Test detection filtering accuracy
 
 ---
 
