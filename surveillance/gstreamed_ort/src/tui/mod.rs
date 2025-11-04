@@ -185,26 +185,67 @@ fn run_tui_loop(
                         }
                         TuiMode::ZoneEdit => {
                             let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+                            let alt = key.modifiers.contains(KeyModifiers::ALT);
+                            let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
                             let step = if shift { 0.01 } else { 0.05 };
                             
                             match key.code {
                                 KeyCode::Esc => {
                                     app.cancel_zone_edit();
                                 }
-                                KeyCode::Char('s') | KeyCode::Char('S') => {
+                                KeyCode::Char('s') | KeyCode::Char('S') if !alt && !ctrl => {
                                     app.save_zone_draft();
                                 }
-                                // Adjust top-left corner
-                                KeyCode::Left if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                // Move entire zone (HJKL vim-style, no modifiers needed)
+                                KeyCode::Char('h') | KeyCode::Char('H') if !ctrl => {
+                                    app.move_zone(-step, 0.0);
+                                }
+                                KeyCode::Char('l') | KeyCode::Char('L') if !ctrl => {
+                                    app.move_zone(step, 0.0);
+                                }
+                                KeyCode::Char('k') | KeyCode::Char('K') if !ctrl => {
+                                    app.move_zone(0.0, -step);
+                                }
+                                KeyCode::Char('j') | KeyCode::Char('J') if !ctrl => {
+                                    app.move_zone(0.0, step);
+                                }
+                                // Move entire zone (Alt + Arrows OR Alt+WASD - if terminal supports)
+                                KeyCode::Left if alt => {
+                                    app.move_zone(-step, 0.0);
+                                }
+                                KeyCode::Right if alt => {
+                                    app.move_zone(step, 0.0);
+                                }
+                                KeyCode::Up if alt => {
+                                    app.move_zone(0.0, -step);
+                                }
+                                KeyCode::Down if alt => {
+                                    app.move_zone(0.0, step);
+                                }
+                                // WASD alternative for movement (Alt+WASD - if terminal supports)
+                                KeyCode::Char('a') | KeyCode::Char('A') if alt => {
+                                    app.move_zone(-step, 0.0);
+                                }
+                                KeyCode::Char('d') | KeyCode::Char('D') if alt => {
+                                    app.move_zone(step, 0.0);
+                                }
+                                KeyCode::Char('w') | KeyCode::Char('W') if alt => {
+                                    app.move_zone(0.0, -step);
+                                }
+                                KeyCode::Char('s') | KeyCode::Char('S') if alt => {
+                                    app.move_zone(0.0, step);
+                                }
+                                // Adjust top-left corner (Ctrl + Arrows)
+                                KeyCode::Left if ctrl => {
                                     app.adjust_zone_bbox(-step, 0.0, 0.0, 0.0);
                                 }
-                                KeyCode::Right if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                KeyCode::Right if ctrl => {
                                     app.adjust_zone_bbox(step, 0.0, 0.0, 0.0);
                                 }
-                                KeyCode::Up if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                KeyCode::Up if ctrl => {
                                     app.adjust_zone_bbox(0.0, -step, 0.0, 0.0);
                                 }
-                                KeyCode::Down if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                KeyCode::Down if ctrl => {
                                     app.adjust_zone_bbox(0.0, step, 0.0, 0.0);
                                 }
                                 // Adjust bottom-right corner (default)

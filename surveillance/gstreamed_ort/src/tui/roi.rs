@@ -6,6 +6,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 const ZONES_FILE: &str = "zones.json";
+pub const MIN_ZONE_SIZE: f32 = 0.01; // 1% of frame - minimum zone dimension
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RoiZone {
@@ -68,17 +69,38 @@ impl RoiZone {
 
     /// Validate and clamp bbox coordinates
     pub fn validate_and_clamp(&mut self) {
+        // Clamp to valid range [0.0, 1.0]
         self.bbox.xmin = self.bbox.xmin.clamp(0.0, 1.0);
         self.bbox.ymin = self.bbox.ymin.clamp(0.0, 1.0);
         self.bbox.xmax = self.bbox.xmax.clamp(0.0, 1.0);
         self.bbox.ymax = self.bbox.ymax.clamp(0.0, 1.0);
 
-        // Ensure min < max
-        if self.bbox.xmin > self.bbox.xmax {
-            std::mem::swap(&mut self.bbox.xmin, &mut self.bbox.xmax);
+        // Ensure min < max with minimum size constraint
+        if self.bbox.xmin >= self.bbox.xmax {
+            // Zone is inverted or zero-width, fix it
+            let mid = (self.bbox.xmin + self.bbox.xmax) / 2.0;
+            self.bbox.xmin = (mid - MIN_ZONE_SIZE / 2.0).max(0.0);
+            self.bbox.xmax = (mid + MIN_ZONE_SIZE / 2.0).min(1.0);
         }
-        if self.bbox.ymin > self.bbox.ymax {
-            std::mem::swap(&mut self.bbox.ymin, &mut self.bbox.ymax);
+        
+        if self.bbox.ymin >= self.bbox.ymax {
+            // Zone is inverted or zero-height, fix it
+            let mid = (self.bbox.ymin + self.bbox.ymax) / 2.0;
+            self.bbox.ymin = (mid - MIN_ZONE_SIZE / 2.0).max(0.0);
+            self.bbox.ymax = (mid + MIN_ZONE_SIZE / 2.0).min(1.0);
+        }
+        
+        // Ensure minimum zone size is maintained
+        if (self.bbox.xmax - self.bbox.xmin) < MIN_ZONE_SIZE {
+            let mid = (self.bbox.xmin + self.bbox.xmax) / 2.0;
+            self.bbox.xmin = (mid - MIN_ZONE_SIZE / 2.0).max(0.0);
+            self.bbox.xmax = (mid + MIN_ZONE_SIZE / 2.0).min(1.0);
+        }
+        
+        if (self.bbox.ymax - self.bbox.ymin) < MIN_ZONE_SIZE {
+            let mid = (self.bbox.ymin + self.bbox.ymax) / 2.0;
+            self.bbox.ymin = (mid - MIN_ZONE_SIZE / 2.0).max(0.0);
+            self.bbox.ymax = (mid + MIN_ZONE_SIZE / 2.0).min(1.0);
         }
     }
 }

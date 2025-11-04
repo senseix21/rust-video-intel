@@ -131,15 +131,17 @@ fn draw_left_panel(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(40), // Performance stats
-            Constraint::Percentage(30), // Class distribution  
-            Constraint::Percentage(30), // Living beings
+            Constraint::Percentage(35), // Performance stats
+            Constraint::Percentage(25), // Class distribution  
+            Constraint::Percentage(20), // Living beings
+            Constraint::Percentage(20), // ROI Zones
         ])
         .split(area);
 
     draw_performance_stats(f, app, chunks[0]);
     draw_class_distribution(f, app, chunks[1]);
     draw_living_beings(f, app, chunks[2]);
+    draw_zone_summary(f, app, chunks[3]);
 }
 
 fn draw_performance_stats(f: &mut Frame, app: &App, area: Rect) {
@@ -260,6 +262,56 @@ fn draw_living_beings(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(list, area);
 }
 
+fn draw_zone_summary(f: &mut Frame, app: &App, area: Rect) {
+    if app.zones.is_empty() {
+        let empty = Paragraph::new(vec![
+            Line::from(""),
+            Line::from("  No zones configured"),
+            Line::from("  Press 'Z' to manage zones"),
+        ])
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::ALL).title("🎯 ROI Zones"));
+        f.render_widget(empty, area);
+        return;
+    }
+    
+    let zone_counts = app.count_zone_detections();
+    let enabled_count = app.zones.iter().filter(|z| z.enabled).count();
+    
+    let items: Vec<ListItem> = app.zones
+        .iter()
+        .take(5)
+        .map(|zone| {
+            let count = zone_counts.get(&zone.id).copied().unwrap_or(0);
+            let status = if zone.enabled { "✓" } else { "✗" };
+            let status_color = if zone.enabled { Color::Green } else { Color::Red };
+            
+            let name_truncated = if zone.name.len() > 12 {
+                format!("{}...", &zone.name[..9])
+            } else {
+                zone.name.clone()
+            };
+            
+            ListItem::new(Line::from(vec![
+                Span::styled(status, Style::default().fg(status_color).add_modifier(Modifier::BOLD)),
+                Span::raw(format!(" {:<12} ", name_truncated)),
+                Span::styled(
+                    format!("×{}", count),
+                    Style::default().fg(if count > 0 { Color::Cyan } else { Color::Gray })
+                ),
+            ]))
+        })
+        .collect();
+    
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!("🎯 ROI Zones ({}/{})", enabled_count, app.zones.len())),
+    );
+
+    f.render_widget(list, area);
+}
+
 fn draw_right_panel(f: &mut Frame, app: &App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -271,7 +323,7 @@ fn draw_right_panel(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_detections_table(f: &mut Frame, app: &App, area: Rect) {
-    let header = Row::new(vec!["ID", "Class", "Conf", "Color", "Position"])
+    let header = Row::new(vec!["ID", "Class", "Conf", "Zone", "Color", "Position"])
         .style(Style::default().add_modifier(Modifier::BOLD))
         .bottom_margin(1);
 
@@ -291,6 +343,9 @@ fn draw_detections_table(f: &mut Frame, app: &App, area: Rect) {
             let id = det.tracker_id
                 .map(|id| format!("#{}", id))
                 .unwrap_or_else(|| "-".to_string());
+            
+            let zone_name = app.get_detection_zone_name(det)
+                .unwrap_or_else(|| "-".to_string());
 
             let color_info = det.attributes.color_info
                 .as_ref()
@@ -306,6 +361,7 @@ fn draw_detections_table(f: &mut Frame, app: &App, area: Rect) {
                 Cell::from(id),
                 Cell::from(det.class_name.clone()),
                 Cell::from(format!("{:.2}", det.confidence)),
+                Cell::from(zone_name),
                 Cell::from(color_info),
                 Cell::from(position),
             ])
@@ -319,6 +375,7 @@ fn draw_detections_table(f: &mut Frame, app: &App, area: Rect) {
             Constraint::Length(8),
             Constraint::Length(12),
             Constraint::Length(6),
+            Constraint::Length(12),
             Constraint::Length(12),
             Constraint::Length(15),
         ],
@@ -342,6 +399,11 @@ fn draw_selected_detail(f: &mut Frame, app: &App, area: Rect) {
 
         if let Some(id) = det.tracker_id {
             lines.push(Line::from(format!("  Tracking ID: #{}", id)));
+        }
+        
+        // Add zone information
+        if let Some(zone_name) = app.get_detection_zone_name(det) {
+            lines.push(Line::from(format!("  Zone: {}", zone_name)));
         }
 
         lines.push(Line::from(format!(
@@ -542,8 +604,12 @@ fn draw_zone_edit_mode(f: &mut Frame, app: &App) {
     // Help footer
     let help = Paragraph::new(Line::from(vec![
         Span::styled("[↑↓←→]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::raw(" Adjust  "),
-        Span::styled("[Shift+↑↓←→]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(" Resize  "),
+        Span::styled("[Ctrl+↑↓←→]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw(" Resize-TL  "),
+        Span::styled("[HJKL]", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+        Span::raw(" Move  "),
+        Span::styled("[Shift]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         Span::raw(" Fine  "),
         Span::styled("[S]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
         Span::raw(" Save  "),

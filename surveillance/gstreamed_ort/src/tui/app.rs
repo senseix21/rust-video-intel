@@ -3,7 +3,7 @@ use std::time::Instant;
 use inference_common::detection_logger::DetectionLog;
 use inference_common::frame_times::FrameTimes;
 
-use super::roi::{RoiZone, load_zones, save_zones};
+use super::roi::{RoiZone, load_zones, save_zones, MIN_ZONE_SIZE};
 
 const MAX_HISTORY: usize = 1000;
 const PERF_HISTORY_SIZE: usize = 60;
@@ -434,6 +434,14 @@ impl App {
         }
         counts
     }
+    
+    /// Get the name of the zone containing a detection (returns first match)
+    pub fn get_detection_zone_name(&self, det: &DetectionLog) -> Option<String> {
+        self.zones
+            .iter()
+            .find(|zone| zone.enabled && zone.contains_detection(det, self.width, self.height))
+            .map(|zone| zone.name.clone())
+    }
 
     // ===== TUI Mode Navigation Methods =====
     
@@ -518,13 +526,51 @@ impl App {
         }
     }
     
-    /// Adjust zone coordinates
+    /// Adjust zone coordinates with proper min/max constraints
     pub fn adjust_zone_bbox(&mut self, dx_min: f32, dy_min: f32, dx_max: f32, dy_max: f32) {
         if let Some(zone) = &mut self.zone_draft {
-            zone.bbox.xmin = (zone.bbox.xmin + dx_min).clamp(0.0, 1.0);
-            zone.bbox.ymin = (zone.bbox.ymin + dy_min).clamp(0.0, 1.0);
-            zone.bbox.xmax = (zone.bbox.xmax + dx_max).clamp(0.0, 1.0);
-            zone.bbox.ymax = (zone.bbox.ymax + dy_max).clamp(0.0, 1.0);
+            // Calculate new values with basic clamping to [0.0, 1.0]
+            let new_xmin = (zone.bbox.xmin + dx_min).clamp(0.0, 1.0);
+            let new_ymin = (zone.bbox.ymin + dy_min).clamp(0.0, 1.0);
+            let new_xmax = (zone.bbox.xmax + dx_max).clamp(0.0, 1.0);
+            let new_ymax = (zone.bbox.ymax + dy_max).clamp(0.0, 1.0);
+            
+            // Apply with min/max constraints to prevent inversion
+            // xmin must not exceed xmax - MIN_ZONE_SIZE
+            zone.bbox.xmin = new_xmin.min(zone.bbox.xmax - MIN_ZONE_SIZE);
+            // ymin must not exceed ymax - MIN_ZONE_SIZE
+            zone.bbox.ymin = new_ymin.min(zone.bbox.ymax - MIN_ZONE_SIZE);
+            // xmax must not go below xmin + MIN_ZONE_SIZE
+            zone.bbox.xmax = new_xmax.max(zone.bbox.xmin + MIN_ZONE_SIZE);
+            // ymax must not go below ymin + MIN_ZONE_SIZE
+            zone.bbox.ymax = new_ymax.max(zone.bbox.ymin + MIN_ZONE_SIZE);
+            
+            // Final validation to ensure consistency
+            zone.validate_and_clamp();
+        }
+    }
+
+    pub fn move_zone(&mut self, dx: f32, dy: f32) {
+        if let Some(zone) = &mut self.zone_draft {
+            // Calculate new positions
+            let new_xmin = zone.bbox.xmin + dx;
+            let new_ymin = zone.bbox.ymin + dy;
+            let new_xmax = zone.bbox.xmax + dx;
+            let new_ymax = zone.bbox.ymax + dy;
+            
+            // Check if move would go out of bounds
+            if new_xmin >= 0.0 && new_xmax <= 1.0 {
+                zone.bbox.xmin = new_xmin;
+                zone.bbox.xmax = new_xmax;
+            }
+            
+            if new_ymin >= 0.0 && new_ymax <= 1.0 {
+                zone.bbox.ymin = new_ymin;
+                zone.bbox.ymax = new_ymax;
+            }
+            
+            // Ensure still valid
+            zone.validate_and_clamp();
         }
     }
 }
