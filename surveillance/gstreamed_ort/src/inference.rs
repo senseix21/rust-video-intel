@@ -96,6 +96,8 @@ pub fn infer_on_image(
     tracker: Option<&mut Sort>,
     og_image: DynamicImage,
     frame_times: &mut FrameTimes,
+    conf_threshold: f32,
+    nms_threshold: f32,
 ) -> anyhow::Result<(DynamicImage, BBoxesByClass)> {
     // FIXME determine target_dims based on model?
     let model_input_dims = ImgDimensions::new(640f32, 384f32);
@@ -124,8 +126,6 @@ pub fn infer_on_image(
     log::debug!("got outputs: {outputs:?}");
 
     // Parse and annotate outputs.
-    let conf_threshold = 0.25;
-    let nms_threshold = 0.45;
     let bboxes = parse_predictions(
         outputs,
         scaled_dims,

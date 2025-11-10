@@ -58,6 +58,14 @@ pub fn parse_predictions(
         let cy = bbox[1];
         let w = bbox[2];
         let h = bbox[3];
+        
+        // Filter out tiny boxes (likely false positives or noise)
+        // Minimum 10 pixels in both dimensions
+        const MIN_BOX_SIZE: f32 = 10.0;
+        if w < MIN_BOX_SIZE || h < MIN_BOX_SIZE {
+            log::trace!("Skipping tiny bbox: w={w}, h={h}");
+            continue;
+        }
 
         let xmin = cx - w / 2.;
         let ymin = cy - h / 2.;

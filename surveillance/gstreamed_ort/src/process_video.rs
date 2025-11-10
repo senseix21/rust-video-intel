@@ -30,6 +30,8 @@ pub fn process_buffer(
     buffer: &mut gst::Buffer,
     attr_detector: &mut AttributeDetector,
     tui_tx: &Option<Sender<TuiMessage>>,
+    conf_threshold: f32,
+    nms_threshold: f32,
 ) {
     let mut frame_times = FrameTimes::default();
 
@@ -53,7 +55,7 @@ pub fn process_buffer(
     // process it using some model + draw overlays on the output image
     let mut tracker = tracker.lock().unwrap();
     let (processed, bboxes) =
-        inference::infer_on_image(session, Some(&mut *tracker), image.clone(), &mut frame_times).unwrap();
+        inference::infer_on_image(session, Some(&mut *tracker), image.clone(), &mut frame_times, conf_threshold, nms_threshold).unwrap();
     
     // Enhanced logging with color extraction
     let frame_num = video_meta.frames.len() as u64;
@@ -127,8 +129,8 @@ pub fn process_buffer(
 }
 
 /// Performs inference on a video file, using a gstreamer pipeline + ort.
-pub fn process_video(input: &Path, live_playback: bool, session: Session) -> anyhow::Result<()> {
-    process_video_internal(input, live_playback, session, None)
+pub fn process_video(input: &Path, live_playback: bool, session: Session, conf_threshold: f32, nms_threshold: f32) -> anyhow::Result<()> {
+    process_video_internal(input, live_playback, session, None, conf_threshold, nms_threshold)
 }
 
 /// Internal version with optional TUI sender
@@ -137,6 +139,8 @@ pub fn process_video_internal(
     live_playback: bool, 
     session: Session,
     tui_tx: Option<Sender<TuiMessage>>,
+    conf_threshold: f32,
+    nms_threshold: f32,
 ) -> anyhow::Result<()> {
     gst::init()?;
 
@@ -211,6 +215,8 @@ pub fn process_video_internal(
                 buf,
                 &mut attr_detector,
                 &scoped_tui_tx.as_ref(),
+                conf_threshold,
+                nms_threshold,
             );
         },
     )?;
@@ -273,8 +279,8 @@ pub fn process_video_internal(
 }
 
 /// Performs inference on webcam stream
-pub fn process_webcam(device: &str, live_playback: bool, session: Session) -> anyhow::Result<()> {
-    process_webcam_internal(device, live_playback, session, None)
+pub fn process_webcam(device: &str, live_playback: bool, session: Session, conf_threshold: f32, nms_threshold: f32) -> anyhow::Result<()> {
+    process_webcam_internal(device, live_playback, session, None, conf_threshold, nms_threshold)
 }
 
 /// Internal version with optional TUI sender
@@ -283,6 +289,8 @@ pub fn process_webcam_internal(
     live_playback: bool,
     session: Session,
     tui_tx: Option<Sender<TuiMessage>>,
+    conf_threshold: f32,
+    nms_threshold: f32,
 ) -> anyhow::Result<()> {
     gst::init()?;
 
@@ -383,7 +391,7 @@ pub fn process_webcam_internal(
             // Process with inference
             let mut session = session.lock().unwrap();
             let mut tracker = tracker.lock().unwrap();
-            let (processed, bboxes) = match inference::infer_on_image(&mut *session, Some(&mut *tracker), image.clone(), &mut frame_times) {
+            let (processed, bboxes) = match inference::infer_on_image(&mut *session, Some(&mut *tracker), image.clone(), &mut frame_times, conf_threshold, nms_threshold) {
                 Ok(result) => result,
                 Err(e) => {
                     log::error!("Inference error: {}", e);

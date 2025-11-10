@@ -28,6 +28,8 @@ pub fn process_video_with_tui(
     path: &Path,
     live: bool,
     session: Session,
+    conf_threshold: f32,
+    nms_threshold: f32,
 ) -> Result<()> {
     // Disable GStreamer debug output to prevent TUI interference
     std::env::set_var("GST_DEBUG", "0");
@@ -47,7 +49,7 @@ pub fn process_video_with_tui(
     // Spawn worker thread for video processing
     let path_clone = path.to_path_buf();
     let worker = thread::spawn(move || {
-        process_video::process_video_internal(&path_clone, live, session, Some(tx))
+        process_video::process_video_internal(&path_clone, live, session, Some(tx), conf_threshold, nms_threshold)
     });
 
     // Run TUI
@@ -72,6 +74,8 @@ pub fn process_webcam_with_tui(
     device: &str,
     live: bool,
     session: Session,
+    conf_threshold: f32,
+    nms_threshold: f32,
 ) -> Result<()> {
     // Disable GStreamer debug output to prevent TUI interference
     std::env::set_var("GST_DEBUG", "0");
@@ -91,7 +95,7 @@ pub fn process_webcam_with_tui(
     // Spawn worker thread
     let device_clone = device.to_string();
     let worker = thread::spawn(move || {
-        process_video::process_webcam_internal(&device_clone, live, session, Some(tx))
+        process_video::process_webcam_internal(&device_clone, live, session, Some(tx), conf_threshold, nms_threshold)
     });
 
     // Run TUI
