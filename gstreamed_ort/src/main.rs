@@ -1,7 +1,6 @@
 mod inference;
 mod process_image;
 mod process_video;
-mod tui;
 
 use std::path::PathBuf;
 
@@ -30,37 +29,19 @@ pub struct Args {
     /// Webcam device (e.g., /dev/video0). Use with input "webcam".
     #[arg(long, default_value = "/dev/video0")]
     device: String,
-    /// Enable interactive TUI dashboard
-    #[arg(long, action, default_value = "false")]
-    tui: bool,
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    // Initialize logging.
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "warn,gstreamed_ort=info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-    // Initialize logging - suppress if TUI is active
-    if !args.tui {
-        tracing_subscriber::registry()
-            .with(
-                tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| "warn,gstreamed_ort=info".into()),
-            )
-            .with(tracing_subscriber::fmt::layer())
-            .init();
-    } else {
-        // For TUI mode, completely disable all logging output
-        // This prevents any log output from interfering with the TUI
-        use tracing_subscriber::layer::SubscriberExt;
-        use tracing_subscriber::util::SubscriberInitExt;
-        
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::EnvFilter::new("off"))
-            .with(tracing_subscriber::fmt::layer().with_writer(std::io::sink))
-            .init();
-        
-        // Also disable log crate output
-        log::set_max_level(log::LevelFilter::Off);
-    }
+    let args = Args::parse();
 
     // Load model into ort.
     let (ep, ep_name) = if args.cuda {
@@ -92,20 +73,10 @@ fn main() -> anyhow::Result<()> {
         } else {
             input_str.as_ref()
         };
-        if args.tui {
-            tui::process_webcam_with_tui(device, args.live, session)?;
-        } else {
-            process_video::process_webcam(device, args.live, session)?;
-        }
+        process_video::process_webcam(device, args.live, session)?;
     } else {
         match args.input.extension().and_then(|os_str| os_str.to_str()) {
-            Some("mp4" | "mkv") => {
-                if args.tui {
-                    tui::process_video_with_tui(&args.input, args.live, session)?;
-                } else {
-                    process_video::process_video(&args.input, args.live, session)?;
-                }
-            }
+            Some("mp4" | "mkv") => process_video::process_video(&args.input, args.live, session)?,
             Some("jpeg" | "jpg" | "png") => process_image::process_image(&args.input, session)?,
             Some(unk) => log::error!("Unhandled file extension: {unk}"),
             None => log::error!(

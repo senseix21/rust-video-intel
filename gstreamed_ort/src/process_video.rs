@@ -1,7 +1,6 @@
 use std::io::Write;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::Sender;
 use std::time::Instant;
 
 use gstreamed_common::{discovery, pipeline::build_pipeline};
@@ -18,18 +17,17 @@ use inference_common::onnx_attributes::AttributeDetector;
 use ort::session::Session;
 
 use crate::inference;
-use crate::tui::app::TuiMessage;
 
 pub fn process_buffer(
     frame_dims: ImgDimensions,
     session: &mut Session,
+    // TODO make tracking optional
     tracker: &Mutex<Sort>,
     agg_times: &mut AggregatedTimes,
     video_meta: &mut VideoMeta,
     detection_logger: &mut DetectionLogger,
     buffer: &mut gst::Buffer,
     attr_detector: &mut AttributeDetector,
-    tui_tx: &Option<Sender<TuiMessage>>,
 ) {
     let mut frame_times = FrameTimes::default();
 
@@ -92,20 +90,8 @@ pub fn process_buffer(
         }
     }
     
-    // Print frame summary with enhanced formatting (only if not using TUI)
-    if tui_tx.is_none() {
-        detection_logger.print_frame_summary(frame_num, &frame_detections);
-    }
-    
-    // Send to TUI if available
-    if let Some(tx) = tui_tx {
-        let _ = tx.send(TuiMessage::FrameProcessed {
-            frame_num,
-            timestamp_ms,
-            detections: frame_detections.clone(),
-            performance: frame_times.clone(),
-        });
-    }
+    // Print frame summary with enhanced formatting
+    detection_logger.print_frame_summary(frame_num, &frame_detections);
     
     let frame_meta = FrameMeta {
         pts: buffer.pts().unwrap_or_default().into(),
@@ -128,16 +114,6 @@ pub fn process_buffer(
 
 /// Performs inference on a video file, using a gstreamer pipeline + ort.
 pub fn process_video(input: &Path, live_playback: bool, session: Session) -> anyhow::Result<()> {
-    process_video_internal(input, live_playback, session, None)
-}
-
-/// Internal version with optional TUI sender
-pub fn process_video_internal(
-    input: &Path, 
-    live_playback: bool, 
-    session: Session,
-    tui_tx: Option<Sender<TuiMessage>>,
-) -> anyhow::Result<()> {
     gst::init()?;
 
     let agg_times = Arc::new(Mutex::new(AggregatedTimes::default()));
@@ -147,19 +123,6 @@ pub fn process_video_internal(
     let file_info = discovery::discover(input)?;
     log::info!("{file_info:?}");
     let frame_dims = ImgDimensions::new(file_info.width as f32, file_info.height as f32);
-
-    // Send video info to TUI
-    if let Some(ref tx) = tui_tx {
-        let _ = tx.send(TuiMessage::VideoInfo {
-            filename: input.file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-                .to_string(),
-            width: frame_dims.width as u32,
-            height: frame_dims.height as u32,
-            total_frames: None, // Could extract from file_info if available
-        });
-    }
 
     let output_path = input.with_extension("out.mkv");
 
@@ -174,9 +137,6 @@ pub fn process_video_internal(
     // Create detection logger
     let detection_logger = Arc::new(Mutex::new(DetectionLogger::new()));
 
-    // Wrap TUI sender in Arc for sharing
-    let tui_tx = Arc::new(tui_tx);
-
     // Build gst pipeline, which performs inference using the loaded model.
     let scoped_agg = Arc::clone(&agg_times);
     let video_meta = Arc::new(Mutex::new(VideoMeta::new(
@@ -188,7 +148,6 @@ pub fn process_video_internal(
     let scoped_meta = Arc::clone(&video_meta);
     let scoped_logger = Arc::clone(&detection_logger);
     let scoped_attr = Arc::clone(&attr_detector);
-    let scoped_tui_tx = Arc::clone(&tui_tx);
     // FIXME can we do it without Mutex? it's not gonna be contested much, tho...
     let session = Arc::new(Mutex::new(session));
     let pipeline = build_pipeline(
@@ -210,7 +169,6 @@ pub fn process_video_internal(
                 &mut logger,
                 buf,
                 &mut attr_detector,
-                &scoped_tui_tx.as_ref(),
             );
         },
     )?;
@@ -226,16 +184,10 @@ pub fn process_video_internal(
                 pipeline.debug_to_dot_file(gst::DebugGraphDetails::all(), "pipeline.error");
                 let name = err.src().map(|e| e.name().to_string());
                 log::error!("Error from element {name:?}: {}", err.error());
-                if let Some(ref tx) = tui_tx.as_ref() {
-                    let _ = tx.send(TuiMessage::Error(format!("{}", err.error())));
-                }
                 break;
             }
             MessageView::Eos(..) => {
                 log::info!("Pipeline reached end of stream.");
-                if let Some(ref tx) = tui_tx.as_ref() {
-                    let _ = tx.send(TuiMessage::Finished);
-                }
                 break;
             }
             _ => (),
@@ -274,16 +226,6 @@ pub fn process_video_internal(
 
 /// Performs inference on webcam stream
 pub fn process_webcam(device: &str, live_playback: bool, session: Session) -> anyhow::Result<()> {
-    process_webcam_internal(device, live_playback, session, None)
-}
-
-/// Internal version with optional TUI sender
-pub fn process_webcam_internal(
-    device: &str,
-    live_playback: bool,
-    session: Session,
-    tui_tx: Option<Sender<TuiMessage>>,
-) -> anyhow::Result<()> {
     gst::init()?;
 
     let agg_times = Arc::new(Mutex::new(AggregatedTimes::default()));
@@ -295,28 +237,16 @@ pub fn process_webcam_internal(
     
     log::info!("Starting webcam inference from device: {device}");
     
-    // Send initial video info to TUI
-    if let Some(ref tx) = tui_tx {
-        let _ = tx.send(TuiMessage::VideoInfo {
-            filename: format!("Webcam: {}", device),
-            width: 640,
-            height: 480,
-            total_frames: None,
-        });
-    }
-    
     let tracker = inference_common::tracker::sort_tracker();
     let detection_logger = Arc::new(Mutex::new(DetectionLogger::new()));
     let attr_detector = Arc::new(Mutex::new(
         AttributeDetector::new(None, None).expect("Failed to initialize attribute detector")
     ));
-    let tui_tx = Arc::new(tui_tx);
     let scoped_agg = Arc::clone(&agg_times);
     let scoped_dims = Arc::clone(&frame_dims);
     let scoped_detected = Arc::clone(&dims_detected);
     let scoped_logger = Arc::clone(&detection_logger);
     let scoped_attr = Arc::clone(&attr_detector);
-    let scoped_tui = Arc::clone(&tui_tx);
     let session = Arc::new(Mutex::new(session));
     let frame_count = Arc::new(Mutex::new(0u64));
     
@@ -429,25 +359,13 @@ pub fn process_webcam_internal(
                 }
             }
             
-            // Print frame summary with enhanced formatting (skip if using TUI)
+            // Print frame summary with enhanced formatting
             if !frame_detections.is_empty() {
                 let mut logger = scoped_logger.lock().unwrap();
                 for detection in &frame_detections {
                     logger.log_detection(detection.clone());
                 }
-                if scoped_tui.is_none() {
-                    logger.print_frame_summary(*frame_num, &frame_detections);
-                }
-            }
-            
-            // Send to TUI if available
-            if let Some(ref tx) = scoped_tui.as_ref() {
-                let _ = tx.send(TuiMessage::FrameProcessed {
-                    frame_num: *frame_num,
-                    timestamp_ms,
-                    detections: frame_detections.clone(),
-                    performance: frame_times.clone(),
-                });
+                logger.print_frame_summary(*frame_num, &frame_detections);
             }
             
             // Overwrite the buffer with processed image
@@ -484,25 +402,17 @@ pub fn process_webcam_internal(
     pipeline.set_state(gst::State::Playing).unwrap();
     
     let bus = pipeline.bus().unwrap();
-    if tui_tx.is_none() {
-        println!("Webcam inference running. Press Ctrl+C to stop.");
-    }
+    println!("Webcam inference running. Press Ctrl+C to stop.");
     for msg in bus.iter_timed(gst::ClockTime::NONE) {
         match msg.view() {
             MessageView::Error(err) => {
                 pipeline.debug_to_dot_file(gst::DebugGraphDetails::all(), "pipeline.error");
                 let name = err.src().map(|e| e.name().to_string());
                 log::error!("Error from element {name:?}: {}", err.error());
-                if let Some(ref tx) = tui_tx.as_ref() {
-                    let _ = tx.send(TuiMessage::Error(format!("{}", err.error())));
-                }
                 break;
             }
             MessageView::Eos(..) => {
                 log::info!("Pipeline reached end of stream.");
-                if let Some(ref tx) = tui_tx.as_ref() {
-                    let _ = tx.send(TuiMessage::Finished);
-                }
                 break;
             }
             _ => (),
