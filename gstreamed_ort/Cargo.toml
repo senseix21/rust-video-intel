@@ -13,7 +13,6 @@ ort_common.workspace = true
 # ext
 anyhow.workspace = true
 clap.workspace = true
-crossterm = "0.28"
 fast_image_resize = { version = "5.1.0", features = ["image"] }
 gstreamer.workspace = true
 image.workspace = true
@@ -21,7 +20,6 @@ imageproc.workspace = true
 log.workspace = true
 ndarray.workspace = true
 ort.workspace = true
-ratatui = "0.28"
 serde_json = { version = "1.0.134" }
 tracing.workspace = true
 tracing-subscriber.workspace = true
