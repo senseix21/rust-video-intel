@@ -23,11 +23,8 @@ Transform GStreamer × ML Inference into a production-ready, comprehensive compu
 - ✅ SORT object tracking
 - ✅ Live display mode
 - ✅ Attribute detection with enhanced logging
-- ✅ **Interactive TUI dashboard with Ratatui** ⭐ NEW
-- ✅ **Living beings tracking system** ⭐ NEW
-- ✅ **Real-time performance visualization** ⭐ NEW
 
-**Status**: Released v0.2.0 with TUI dashboard
+**Status**: Released v0.1.0 (implied)
 
 ---
 

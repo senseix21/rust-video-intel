@@ -6,15 +6,13 @@ Track the development progress of GStreamer × ML Inference project with detaile
 
 ## 📅 Current Sprint: October 2025
 
-**Focus**: Interactive TUI Dashboard and Enhanced Visualization
+**Focus**: Enhanced attribute detection and code quality improvements
 
 ### This Week's Achievements
 - ✅ Implemented ONNX-based attribute detection
 - ✅ Enhanced logging system for better debugging
+- ✅ Updated project documentation
 - ✅ Created comprehensive roadmap
-- ✅ **Built interactive Ratatui TUI dashboard**
-- ✅ **Added Living Beings tracking panel**
-- ✅ **Real-time performance visualization**
 
 ### In Progress
 - 🔄 Performance profiling for attribute detection
@@ -61,26 +59,16 @@ Track the development progress of GStreamer × ML Inference project with detaile
 
 ---
 
-### Milestone 3: Feature Enhancement ✅ ACHIEVED
-**Completed**: October 22, 2025
+### Milestone 3: Feature Enhancement 🚧 IN PROGRESS
+**Target**: December 2025
 
 #### Completed
 - ✅ SORT object tracking
 - ✅ Live display mode
 - ✅ Custom model support
 - ✅ Attribute detection
-- ✅ **Interactive TUI dashboard with Ratatui**
-- ✅ **Living beings tracking system**
-- ✅ **Real-time performance visualization**
 
-**Impact**: Professional monitoring interface, expanded use cases, improved user experience
-
----
-
-### Milestone 4: Advanced Features 🚧 IN PROGRESS
-**Target**: December 2025
-
-#### In Progress (25% complete)
+#### In Progress (60% complete)
 - 🔄 Multi-model pipeline (30%)
 - 🔄 Configuration system (40%)
 - 🔄 Improved error handling (50%)
@@ -90,13 +78,12 @@ Track the development progress of GStreamer × ML Inference project with detaile
 - ⏳ Instance segmentation
 - ⏳ Pose estimation
 - ⏳ Enhanced tracking options
-- ⏳ TUI enhancements (ASCII video preview, graphs)
 
-**Expected Impact**: Advanced ML capabilities and enhanced monitoring
+**Expected Impact**: Expanded use cases and improved reliability
 
 ---
 
-### Milestone 5: Production Readiness ⏳ PLANNED
+### Milestone 4: Production Readiness ⏳ PLANNED
 **Target**: March 2026
 
 #### Planned Features
@@ -115,7 +102,7 @@ Track the development progress of GStreamer × ML Inference project with detaile
 ### Core Components
 
 #### gstreamed_ort - Primary Pipeline
-**Status**: 🟢 Stable (v0.2.x)
+**Status**: 🟢 Stable (v0.1.x)
 
 | Feature | Status | Progress | Notes |
 |---------|--------|----------|-------|
@@ -124,8 +111,6 @@ Track the development progress of GStreamer × ML Inference project with detaile
 | CUDA support | ✅ Complete | 100% | Tested on RTX series |
 | Live display | ⚠️ Partial | 70% | Slow on NVIDIA GPUs |
 | Custom models | ✅ Complete | 100% | ONNX format |
-| **Interactive TUI** | ✅ Complete | 100% | **Real-time dashboard** |
-| **Living beings tracker** | ✅ Complete | 100% | **Animals & people tracking** |
 | Error handling | 🔄 In Progress | 60% | Needs improvement |
 | Testing | 🔄 In Progress | 45% | More coverage needed |
 
@@ -285,19 +270,17 @@ Track the development progress of GStreamer × ML Inference project with detaile
 
 #### Goals
 1. ✅ Complete attribute detection feature
-2. ✅ **Build interactive TUI dashboard**
-3. ✅ **Add living beings tracking**
-4. 🔄 Increase test coverage to 60%
-5. 🔄 Setup CI/CD pipeline
-6. ⏳ Add configuration file support
+2. 🔄 Increase test coverage to 60%
+3. 🔄 Setup CI/CD pipeline
+4. ⏳ Add configuration file support
 
 #### Velocity
-- Planned: 16 story points
-- Completed: 11 story points
-- In Progress: 3 story points
-- Remaining: 2 story points
+- Planned: 13 story points
+- Completed: 5 story points
+- In Progress: 5 story points
+- Remaining: 3 story points
 
-**On Track**: 🟢 Yes (69% complete)
+**On Track**: 🟢 Yes
 
 ### Next Sprint Preview (Nov 4 - Nov 18, 2025)
 
@@ -310,15 +293,6 @@ Track the development progress of GStreamer × ML Inference project with detaile
 ---
 
 ## 🔄 Recent Changes
-
-### October 22, 2025
-- ✅ **Built interactive Ratatui TUI dashboard**
-- ✅ **Added Living Beings tracking panel**
-- ✅ **Real-time performance visualization with sparklines**
-- ✅ **Status indicators for living entities (LIVE/RECENT/PAST)**
-- ✅ **Emoji icons for species identification**
-- ✅ Fixed TUI rendering and logging interference
-- ✅ Suppressed GStreamer debug output in TUI mode
 
 ### October 21, 2025
 - ✅ Added ONNX-based attribute detection
@@ -338,15 +312,15 @@ Track the development progress of GStreamer × ML Inference project with detaile
 ## 📊 Statistics
 
 ### Development Activity
-- **Total Commits**: 4 (feature/ratatui-tui branch)
-- **Active Branches**: 2 (main, feature/ratatui-tui)
+- **Total Commits**: 1 (main branch)
+- **Active Branches**: 1
 - **Contributors**: 1
 - **Open Issues**: 0
 - **Closed Issues**: 0
 
 ### Project Size
-- **Lines of Code**: ~6,800+ (with TUI)
-- **Dependencies**: 17 workspace dependencies (added ratatui + crossterm)
+- **Lines of Code**: ~5,000 (estimated)
+- **Dependencies**: 15 workspace dependencies
 - **Modules**: 6 workspace members
 - **Test Files**: Growing
 
@@ -360,8 +334,6 @@ Track the development progress of GStreamer × ML Inference project with detaile
 - 🏆 **Real-time Ready** - 60+ FPS processing capability
 - 🏆 **Hardware Accelerated** - CUDA support working
 - 🏆 **Feature Rich** - Tracking, attributes, multiple formats
-- 🏆 **Interactive Dashboard** - Professional TUI with Ratatui ⭐ NEW
-- 🏆 **Living Beings Tracker** - AI-powered species monitoring ⭐ NEW
 
 ---
 
@@ -393,6 +365,6 @@ Track the development progress of GStreamer × ML Inference project with detaile
 
 ---
 
-**Last Updated**: October 22, 2025, 05:20 UTC  
-**Next Update**: October 29, 2025  
-**Status**: 🟢 On Track - Major TUI Feature Delivered!
+**Last Updated**: October 21, 2025, 08:55 UTC  
+**Next Update**: October 28, 2025  
+**Status**: 🟢 On Track
